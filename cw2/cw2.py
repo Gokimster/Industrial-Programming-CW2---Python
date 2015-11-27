@@ -299,6 +299,8 @@ class TaskExecuter:
             self.task4()
 
     def task2(self, doc) -> dict:
+        """"Take a document UUID and return a  dictionary in which the keys are the countries in which the document
+        has been read in and the values are the number of times the document has been read from that country """
         country_count = {}
         match_records = []
         for entry in self.records:
@@ -314,10 +316,14 @@ class TaskExecuter:
         return country_count
 
     def task2a(self, doc):
+        """"Take a document UUID and show a histogram of the countries that the document has been read in and 
+        the number of times that it has been read for each country"""
         country_count = self.task2(doc)
-        self.show_histo(country_count, "vert", "Views per Country", "Country Distribution")
+        self.show_histo(country_count, "vert", "Reads per Country", "Country Distribution")
 
     def task2b(self, doc):
+        """"Take a document UUID and show a histogram of the continents that the document has been read in and 
+        the number of times that it has been read for each continent"""
         country_count = self.task2(doc)
         cont_count = {}
         for cntry in country_count:
@@ -347,6 +353,7 @@ class TaskExecuter:
         plt.show()
 
     def task3a(self):
+        """Show a histogram of the browsers used by viewers"""
         browser_count = {}
         for entry in self.records:
             if(entry['visitor_device'] == 'browser'):
@@ -357,6 +364,7 @@ class TaskExecuter:
         self.show_histo(browser_count, "vert", "Number of Accesses using Browser", "Browser Distribution")
 
     def task3b(self):
+        """Show a histogram of the browsers used by viewers - just the browser name"""
         browser_count = {}
         for entry in self.records:
             if(entry['visitor_device'] == 'browser'):
@@ -369,7 +377,8 @@ class TaskExecuter:
                     browser_count[browser] = 1
         self.show_histo(browser_count, "vert", "Number of Accesses using Browser", "Browser Distribution")
 
-    def task4(self):
+    def task4(self) ->list:
+        """Return the top 10 readers in the records"""
         user_readTimes = {}
         for entry in self.records:
             if(entry['event_type'] == 'pagereadtime'):
@@ -377,34 +386,64 @@ class TaskExecuter:
                     user_readTimes[entry['visitor_uuid']] += entry['event_readtime']
                 else:
                     user_readTimes[entry['visitor_uuid']] = entry['event_readtime']
-        readTimes = sorted(user_readTimes.items(), key=operator.itemgetter(1), reverse = True)
-        i = 0
+        readTimes = list(sorted(user_readTimes.items(), key=operator.itemgetter(1), reverse = True).keys)[0:10]
         for times in readTimes:
-            if(i > 9):
-                break
             print(readTimes[i])
-            i += 1
+        return readTimes
 
     def task5(sef):
         user_uuids = getDocVisitors(doc_uuid)
 
     def getDocVisitors(self, doc_uuid) -> list:
+        """Takes a document UUID and returns a list of all the visitor UUIDs that read that document"""
         user_uuids = []
         for entry in self.records:
-            if((entry['event_type'] =='read') & (entry['subject_doc_id'] == doc_uuid)):
+            if((entry['event_type'] =='read') & (entry['subject_doc_id'] == doc_uuid) & (not(entry['visitor_uuid'] in user_uuids))):
                 user_uuids.append(entry['visitor_uuid'])
         return user_uuids
 
     def getDocsForVisitor(self, visitor_uuid) -> list:
+        """Takes a visitor UUID and returns a ist of all the documents read by that visitor"""
         doc_uuids = []
         for entry in self.records:
             if ((entry['event_type'] =='read') & (entry['visitor_uuid'] == visitor_uuid)):
                 doc_uuids.append(entry['subject_doc_id'])
         return doc_uuids
+
     def alsoLike(self, doc_uuid, visitor_uuid, sort_fun):
         user_uuids = self.getDocVisitors(doc_uuid)
+        try:
+            user_uuids.remove(visitor_uuid)
+        except:
+            pass
+        sort_fun(user_uuids, doc_uuid)
+
+    def sortByReadCount(self, user_uuids, doc_uuid) -> list:
+        """Takes a ist of user UUIDs and a doc UUID and returns a list of all the docs read by those viewers sorted 
+        by how many users in the list read them"""
+        docs = {}
         for user_uuid in user_uuids:
-            self.getDocsForVisitor(user_uuid)
+            visitor_docs = self.getDocsForVisitor(user_uuid)
+            for doc in visitor_docs:
+                if(doc != doc_uuid):
+                    if (doc in docs):
+                        docs[doc] += 1
+                    else: 
+                        docs[doc] = 1
+        return list(sorted(docs.items(), key=operator.itemgetter(1), reverse = True).keys)
+
+    def sortByReadership(self, user_uuids, doc_uuid) -> list:
+        """Takes a ist of user UUIDs and a doc UUID and returns a list of all the docs read by those viewers sorted 
+        by how many users in the list read them"""
+        docs = {}
+        for entry in self.records:
+            if ((entry['event_type'] =='read') & (entry['visitor_uuid'] == user_uuid)):
+                if(entry['subject_doc_id'] != doc_uuid):
+                    if(doc in docs):
+                        docs[doc] += int(entry['event_readtime'])
+                    else:
+                        docs[doc] = int(entry['event_readtime'])
+        return list(sorted(docs.items(), key = operator.itemgetter(1), reverse = True).keys)
         
 
 class GUI:
