@@ -6,6 +6,8 @@ import json
 import getopt
 import matplotlib.pyplot as plt
 import operator
+from tkinter import *
+from tkinter import ttk
 
 
 # -----------------------------------------------------------------------------
@@ -274,95 +276,182 @@ cntry_to_cont = {
   'ZM' : 'AF',
   'ZW' : 'AF'
 }
-def loadJSON():
-    records = [ json.loads(line) for line in open(jfile) ]
-    return records
 
-def task2(records, doc):
-    country_count = {}
-    match_records = []
-    for entry in records:
-        if (entry['event_type'] =='read'):
-            if entry['subject_doc_id'] == doc:
-                match_records.append(entry)
-    for rec in match_records:
-        if (rec['visitor_country'] in country_count):
-            country_count[rec['visitor_country']] += 1
+class TaskExecuter:
+
+    def __init__(self):
+        self.records = self.loadJSON()
+
+    def loadJSON(self) -> list:
+        records = [ json.loads(line) for line in open(jfile) ]
+        return records
+
+    def executeTask(self, user, doc, task):
+        if task == "2a":
+            self.task2a(doc)
+        elif task == "2b":
+            self.task2b(doc)
+        elif task == "3a":
+            self.task3a()
+        elif task =="3b":
+            self.task3b()
+        elif task == "4":
+            self.task4()
+
+    def task2(self, doc) -> dict:
+        country_count = {}
+        match_records = []
+        for entry in self.records:
+            if (entry['event_type'] =='read'):
+                if entry['subject_doc_id'] == doc:
+                    match_records.append(entry)
+        for rec in match_records:
+            if (rec['visitor_country'] in country_count):
+                country_count[rec['visitor_country']] += 1
+            else:
+                country_count[rec['visitor_country']] = 1
+        print(country_count)
+        return country_count
+
+    def task2a(self, doc):
+        country_count = self.task2(doc)
+        self.show_histo(country_count, "vert", "Views per Country", "Country Distribution")
+
+    def task2b(self, doc):
+        country_count = self.task2(doc)
+        cont_count = {}
+        for cntry in country_count:
+            if (cntry_to_cont[cntry] in cont_count):
+                cont_count[cntry_to_cont[cntry]] += country_count[cntry]
+            else:
+                cont_count[cntry_to_cont[cntry]] = country_count[cntry]
+        self.show_histo(cont_count, "vert", "Views per Continent", "Continent Distribution")
+
+    def show_histo(self, dict, orient="horiz", label="counts", title="title"):
+        """Take a dictionary of counts and show it as a histogram."""
+        if orient=="horiz":
+            bar_fun = plt.barh 
+            bar_ticks = plt.yticks
+            bar_label = plt.xlabel
+        elif orient=="vert":
+            bar_fun = plt.bar
+            bar_ticks = plt.xticks
+            bar_label = plt.ylabel
         else:
-            country_count[rec['visitor_country']] = 1
-    print(country_count)
-    return country_count
-def task2a(records, doc):
-    country_count = task2(records, doc)
-    show_histo(country_count, "vert", "Views per Country", "Country Distribution")
+            raise Exception("show_histo: Unknown orientation: %s ".format % orient)
+        n = len(dict)
+        bar_fun(range(n), list(dict.values()), align='center', alpha=0.4)
+        bar_ticks(range(n), list(dict.keys())) 
+        bar_label(label)
+        plt.title(title)
+        plt.show()
 
-def task2b(records, doc):
-    country_count = task2(records, doc)
-    cont_count = {}
-    for cntry in country_count:
-        if (cntry_to_cont[cntry] in cont_count):
-            cont_count[cntry_to_cont[cntry]] += country_count[cntry]
-        else:
-            cont_count[cntry_to_cont[cntry]] = country_count[cntry]
-    show_histo(cont_count, "vert", "Views per Continent", "Continent Distribution")
+    def task3a(self):
+        browser_count = {}
+        for entry in self.records:
+            if(entry['visitor_device'] == 'browser'):
+                if (entry['visitor_useragent'] in browser_count):
+                    browser_count[entry['visitor_useragent']] += 1
+                else:
+                    browser_count[entry['visitor_useragent']] = 1
+        self.show_histo(browser_count, "vert", "Number of Accesses using Browser", "Browser Distribution")
 
-def show_histo(dict, orient="horiz", label="counts", title="title"):
-    """Take a dictionary of counts and show it as a histogram."""
-    if orient=="horiz":
-        bar_fun = plt.barh     # NB: this assigns a function to bar_fun!
-        bar_ticks = plt.yticks
-        bar_label = plt.xlabel
-    elif orient=="vert":
-        bar_fun = plt.bar
-        bar_ticks = plt.xticks
-        bar_label = plt.ylabel
-    else:
-        raise Exception("show_histo: Unknown orientation: %s ".format % orient)
-    n = len(dict)
-    bar_fun(range(n), list(dict.values()), align='center', alpha=0.4)
-    bar_ticks(range(n), list(dict.keys()))  # NB: uses a higher-order function
-    bar_label(label)
-    plt.title(title)
-    plt.show()
+    def task3b(self):
+        browser_count = {}
+        for entry in self.records:
+            if(entry['visitor_device'] == 'browser'):
+                if (entry['visitor_useragent'].find('/') > -1):
+                    browser = entry['visitor_useragent'][0:entry['visitor_useragent'].find('/')]
+                else: browser = entry['visitor_useragent']
+                if (browser in browser_count):
+                    browser_count[browser] += 1
+                else:
+                    browser_count[browser] = 1
+        self.show_histo(browser_count, "vert", "Number of Accesses using Browser", "Browser Distribution")
 
-def task3a(records):
-    browser_count = {}
-    for entry in records:
-        if(entry['visitor_device'] == 'browser'):
-            if (entry['visitor_useragent'] in browser_count):
-                browser_count[entry['visitor_useragent']] += 1
-            else:
-                browser_count[entry['visitor_useragent']] = 1
-    show_histo(browser_count, "vert", "Number of Accesses using Browser", "Browser Distribution")
+    def task4(self):
+        user_readTimes = {}
+        for entry in self.records:
+            if(entry['event_type'] == 'pagereadtime'):
+                if (entry['visitor_uuid'] in user_readTimes):
+                    user_readTimes[entry['visitor_uuid']] += entry['event_readtime']
+                else:
+                    user_readTimes[entry['visitor_uuid']] = entry['event_readtime']
+        readTimes = sorted(user_readTimes.items(), key=operator.itemgetter(1), reverse = True)
+        i = 0
+        for times in readTimes:
+            if(i > 9):
+                break
+            print(readTimes[i])
+            i += 1
 
-def task3b(records):
-    browser_count = {}
-    for entry in records:
-        if(entry['visitor_device'] == 'browser'):
-            if (entry['visitor_useragent'].find('/') > -1):
-                browser = entry['visitor_useragent'][0:entry['visitor_useragent'].find('/')]
-            else: browser = entry['visitor_useragent']
-            if (browser in browser_count):
-                browser_count[browser] += 1
-            else:
-                browser_count[browser] = 1
-    show_histo(browser_count, "vert", "Number of Accesses using Browser", "Browser Distribution")
+    def task5(sef):
+        user_uuids = getDocVisitors(doc_uuid)
 
-def task4(records):
-    user_readTimes = {}
-    for entry in records:
-        if(entry['event_type'] == 'pagereadtime'):
-            if (entry['visitor_uuid'] in user_readTimes):
-                user_readTimes[entry['visitor_uuid']] += entry['event_readtime']
-            else:
-                user_readTimes[entry['visitor_uuid']] = entry['event_readtime']
-    readTimes = sorted(user_readTimes.items(), key=operator.itemgetter(1), reverse = True)
-    i = 0
-    for times in readTimes:
-        if(i > 9):
-            break
-        print(readTimes[i])
-        i += 1
+    def getDocVisitors(self, doc_uuid) -> list:
+        user_uuids = []
+        for entry in self.records:
+            if((entry['event_type'] =='read') & (entry['subject_doc_id'] == doc_uuid)):
+                user_uuids.append(entry['visitor_uuid'])
+        return user_uuids
+
+    def getDocsForVisitor(self, visitor_uuid) -> list:
+        doc_uuids = []
+        for entry in self.records:
+            if ((entry['event_type'] =='read') & (entry['visitor_uuid'] == visitor_uuid)):
+                doc_uuids.append(entry['subject_doc_id'])
+        return doc_uuids
+    def alsoLike(self, doc_uuid, visitor_uuid, sort_fun):
+        user_uuids = self.getDocVisitors(doc_uuid)
+        for user_uuid in user_uuids:
+            self.getDocsForVisitor(user_uuid)
+        
+
+class GUI:
+
+    def __init__(self):
+        root = Tk()
+        root.title("Coursework 2")
+
+        mainframe = ttk.Frame(root, padding="3 3 12 12")
+        mainframe.grid(column=0, row=0, sticky=(N, W, E, S))
+        mainframe.columnconfigure(0, weight=1)
+        mainframe.rowconfigure(0, weight=1)
+
+        self.visitor_uuid = StringVar()
+        self.document_uuid = StringVar()
+        self.task = StringVar()
+
+        visitor_entry = ttk.Entry(mainframe, width=30, textvariable=self.visitor_uuid)
+        visitor_entry.grid(column=2, row=1, sticky=(W, E))
+
+        document_entry = ttk.Entry(mainframe, width=30, textvariable=self.document_uuid)
+        document_entry.grid(column=2, row=2, sticky=(W, E))
+
+        task_entry = ttk.Entry(mainframe, width=2, textvariable=self.task)
+        task_entry.grid(column=2, row=3, sticky=(W, E))
+
+        ttk.Button(mainframe, text="Do Task", command=self.doTask).grid(column=2, row=4, sticky=W)
+
+        ttk.Label(mainframe, text="Visitor UUID").grid(column=1, row=1, sticky=W)
+        ttk.Label(mainframe, text="Document UUID").grid(column=1, row=2, sticky=E)
+        ttk.Label(mainframe, text="Task").grid(column=1, row=3, sticky=W)
+
+        for child in mainframe.winfo_children(): child.grid_configure(padx=5, pady=5)
+
+        visitor_entry.focus()
+        root.bind('<Return>', self.doTask)
+
+        self.taskEx = TaskExecuter()
+        root.mainloop()
+
+    def doTask(self, *args):
+        taskId = self.task.get()
+        document = self.document_uuid.get()
+        visitor = self.visitor_uuid.get()
+        self.taskEx.executeTask(visitor, document, taskId)
+
+
 
 
 # main
@@ -383,16 +472,10 @@ if __name__ == '__main__':
             task = a
         else:
             assert False, "unhandled option"
-    records = loadJSON()
-    print(user, doc, task);
-    if task == "2a":
-        task2a(records, doc)
-    elif task == "2b":
-        task2b(records, doc)
-    elif task == "3a":
-        task3a(records)
-    elif task =="3b":
-        task3b(records)
-    elif task == "4":
-        task4(records)
+    if((user == "") & (doc == "") &( task == "")):
+        gui = GUI()
+    else:
+        print(user, doc, task)
+        taskEx = TaskExecuter()
+        taskEx.executeTask(user, doc, task)
         
