@@ -10,7 +10,7 @@ from tkinter import ttk
 #--------------------------------------------
 #Constants
 #--------------------------------------------
-jfile = 'issuu_sample.json'
+jfile = 'issuu_cw2.json'
 
 #--------------------------------------------
 #Task Executer Class
@@ -281,8 +281,8 @@ if __name__ == '__main__':
     try:
         opts, args = getopt.getopt(sys.argv[1:], "u:d:t:")
     except getopt.GetoptError as err:
-        usage()
-        sys.exit(2)
+        print(str(err))
+        sys.exit(0)
     user = ""
     doc = ""
     task = ""
