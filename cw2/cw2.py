@@ -1,306 +1,16 @@
-﻿import sys
+import sys
 import json
 import getopt
 import matplotlib.pyplot as plt
-import operator
 from tkinter import *
 from tkinter import ttk
+import operator
 
 
 #--------------------------------------------
 #Constants
 #--------------------------------------------
-jfile = 'issuu_cw2.json'
-
-#--------------------------------------------
-#Task Executer Class
-#--------------------------------------------
-class TaskExecuter:
-
-    def __init__(self):
-        self.records = self.loadJSON()
-
-    def loadJSON(self) -> list:
-        records = [ json.loads(line) for line in open(jfile) ]
-        return records
-
-    def executeTask(self, user, doc, task):
-        """Takes a user uuid, doc uuid and a task and returns the output for the specific task"""
-        if task == "2a":
-            if(doc !=""):
-                return self.task2a(doc)
-            else:
-                return "DOC UUID needs to be specified"
-        elif task == "2b":
-            if(doc !=""):
-                return self.task2b(doc)
-            else:
-                return "DOC UUID needs to be specified"
-        elif task == "3a":
-            return self.task3a()
-        elif task =="3b":
-            return self.task3b()
-        elif task == "4":
-            return self.listToStringFormat(self.task4())
-        elif task == "5a":
-            return self.listToStringFormat(self.task5(doc, user, sorting ="readership"))
-        elif task == "5b":
-            return self.listToStringFormat(self.task5(doc, user, sorting = "count"))
-        else:
-            print("NO SUCH TASK")
-            return "NO SUCH TASK"
-
-    def listToStringFormat(self, list) ->str:
-        """Takes a list and returns a string representation of that list"""
-        string = ''
-        for element in list:
-            string = string + str(element) + "\n"
-        return string
-
-    def task2(self, doc) -> dict:
-        """"Take a document UUID and return a  dictionary in which the keys are the countries in which the document
-        has been read in and the values are the number of times the document has been read from that country """
-        country_count = {}
-        match_records = []
-        for entry in self.records:
-            if (entry['event_type'] =='read'):
-                if entry['subject_doc_id'] == doc:
-                    match_records.append(entry)
-        for rec in match_records:
-            if (rec['visitor_country'] in country_count):
-                country_count[rec['visitor_country']] += 1
-            else:
-                country_count[rec['visitor_country']] = 1
-        print(country_count)
-        return country_count
-
-    def task2a(self, doc):
-        """"Take a document UUID and show a histogram of the countries that the document has been read in and 
-        the number of times that it has been read for each country"""
-        country_count = self.task2(doc)
-        self.show_histo(country_count, "vert", "Reads per Country", "Country Distribution")
-
-    def task2b(self, doc):
-        """"Take a document UUID and show a histogram of the continents that the document has been read in and 
-        the number of times that it has been read for each continent"""
-        country_count = self.task2(doc)
-        cont_count = {}
-        for cntry in country_count:
-            if (cntry_to_cont[cntry] in cont_count):
-                cont_count[cntry_to_cont[cntry]] += country_count[cntry]
-            else:
-                cont_count[cntry_to_cont[cntry]] = country_count[cntry]
-        self.show_histo(cont_count, "vert", "Views per Continent", "Continent Distribution")
-
-    def show_histo(self, dict, orient="horiz", label="counts", title="title"):
-        """Take a dictionary of counts and show it as a histogram."""
-        if orient=="horiz":
-            bar_fun = plt.barh 
-            bar_ticks = plt.yticks
-            bar_label = plt.xlabel
-        elif orient=="vert":
-            bar_fun = plt.bar
-            bar_ticks = plt.xticks
-            bar_label = plt.ylabel
-        else:
-            raise Exception("show_histo: Unknown orientation: %s ".format % orient)
-        n = len(dict)
-        bar_fun(range(n), list(dict.values()), align='center', alpha=0.4)
-        bar_ticks(range(n), list(dict.keys())) 
-        bar_label(label)
-        plt.title(title)
-        plt.show()
-
-    def task3a(self):
-        """Show a histogram of the browsers used by viewers"""
-        browser_count = {}
-        for entry in self.records:
-            if((entry['visitor_device'] == 'browser')  and (entry['event_type'] == 'read')):
-                browser = entry['visitor_useragent']
-                if (browser in browser_count):
-                    browser_count[entry['visitor_useragent']] += 1
-                else:
-                    browser_count[entry['visitor_useragent']] = 1
-        self.show_histo(browser_count, "vert", "Number of Accesses using Browser", "Browser Distribution")
-
-    def task3b(self):
-        """Show a histogram of the browsers used by viewers - just the browser name"""
-        browser_count = {}
-        for entry in self.records:
-            if((entry['visitor_device'] == 'browser') and (entry['event_type'] == 'read')):
-                if (entry['visitor_useragent'].find('/') > -1):
-                    browser = entry['visitor_useragent'][0:entry['visitor_useragent'].find('/')]
-                else: browser = entry['visitor_useragent']
-                if (browser in browser_count):
-                    browser_count[browser] += 1
-                else:
-                    browser_count[browser] = 1
-        self.show_histo(browser_count, "vert", "Number of Accesses using Browser", "Browser Distribution")
-
-    def task4(self) ->list:
-        """Return the top 10 readers in the records"""
-        user_readTimes = {}
-        for entry in self.records:
-            if(entry['event_type'] == 'pagereadtime'):
-                if (entry['visitor_uuid'] in user_readTimes):
-                    user_readTimes[entry['visitor_uuid']] += entry['event_readtime']
-                else:
-                    user_readTimes[entry['visitor_uuid']] = entry['event_readtime']
-        readTimes = list(sorted(user_readTimes.items(), key=operator.itemgetter(1), reverse = True))[0:10]
-        for times in readTimes:
-            print(times)
-        return readTimes
-
-    def task5(self, doc_uuid, visitor_uuid, sorting = "count")-> list:
-        """Takes a document uuid, visitor uuid and a type of sorting and returns a list of "also-liked" documents sorted
-        differently depending on the type"""
-        tmp = []
-        if (sorting == "readership"):
-            tmp = self.alsoLike(doc_uuid, visitor_uuid, self.sortByReadership)
-        elif (sorting == "count"):
-            tmp = self.alsoLike(doc_uuid, visitor_uuid, self.sortByReadCount)
-        else:
-            tmp = ["No Such Task"]
-        print(self.listToStringFormat(tmp))
-        return tmp
-
-    def getDocVisitors(self, doc_uuid) -> list:
-        """Takes a document UUID and returns a list of all the visitor UUIDs that read that document"""
-        user_uuids = []
-        for entry in self.records:
-            if((entry['event_type'] =='read') and (entry['subject_doc_id'] == doc_uuid) and (not(entry['visitor_uuid'] in user_uuids))):
-                user_uuids.append(entry['visitor_uuid'])
-        return user_uuids
-
-    def getDocsForVisitor(self, visitor_uuid) -> list:
-        """Takes a visitor UUID and returns a ist of all the documents read by that visitor"""
-        doc_uuids = []
-        for entry in self.records:
-            if ((entry['event_type'] =='read') and (entry['visitor_uuid'] == visitor_uuid)):
-                doc_uuids.append(entry['subject_doc_id'])
-        return doc_uuids
-
-    def alsoLike(self, doc_uuid, visitor_uuid, sort_fun) -> list:
-        """Takes a document uuid, visitor uuid and a sorting function and returns a list of "also-liked" documents sorted
-        by the given function"""
-        user_uuids = self.getDocVisitors(doc_uuid)
-        try:
-            user_uuids.remove(visitor_uuid)
-        except:
-            pass
-        return sort_fun(user_uuids, doc_uuid)[0:10]
-
-    def sortByReadCount(self, user_uuids, doc_uuid) -> list:
-        """Takes a ist of user UUIDs and a doc UUID and returns a list of all the docs read by those viewers sorted 
-        by how many users in the list read them"""
-        docs = {}
-        for user_uuid in user_uuids:
-            visitor_docs = self.getDocsForVisitor(user_uuid)
-            for doc in visitor_docs:
-                if(doc != doc_uuid):
-                    if (doc in docs):
-                        docs[doc] += 1
-                    else: 
-                        docs[doc] = 1
-        return list(sorted(docs.items(), key=operator.itemgetter(1), reverse = True))
-
-    def sortByReadership(self, user_uuids, doc_uuid) -> list:
-        """Takes a ist of user UUIDs and a doc UUID and returns a list of all the docs read by those viewers sorted 
-        by how many users in the list read them"""
-        docs = {}
-        for entry in self.records:
-            if ((entry['event_type'] =='pagereadtime') and (entry['visitor_uuid'] in user_uuids)):
-                doc = entry['subject_doc_id']
-                if(doc != doc_uuid):
-                    if(doc in docs):
-                        docs[doc] += int(entry['event_readtime'])
-                    else:
-                        docs[doc] = int(entry['event_readtime'])
-        return list(sorted(docs.items(), key = operator.itemgetter(1), reverse = True))
-        
-#--------------------------------------------
-#GUI Class
-#--------------------------------------------
-class GUI:
-
-    def __init__(self):
-        """initialisation of the UI"""
-        self.root = Tk()
-        self.root.title("Coursework 2")
-
-        mainframe = ttk.Frame(self.root, padding="3 3 12 12")
-        mainframe.grid(column=0, row=0, sticky=(N, W, E, S))
-        mainframe.columnconfigure(0, weight=1)
-        mainframe.rowconfigure(0, weight=1)
-
-        self.visitor_uuid = StringVar()
-        self.document_uuid = StringVar()
-        self.task = StringVar()
-
-        visitor_entry = ttk.Entry(mainframe, width=30, textvariable=self.visitor_uuid)
-        visitor_entry.grid(column=2, row=1, sticky=(W, E))
-
-        document_entry = ttk.Entry(mainframe, width=30, textvariable=self.document_uuid)
-        document_entry.grid(column=2, row=2, sticky=(W, E))
-
-        task_entry = ttk.Entry(mainframe, width=2, textvariable=self.task)
-        task_entry.grid(column=2, row=3, sticky=(W, E))
-
-        ttk.Button(mainframe, text="Do Task", command=self.doTask).grid(column=2, row=4, sticky=W)
-
-        ttk.Label(mainframe, text="Visitor UUID").grid(column=1, row=1, sticky=W)
-        ttk.Label(mainframe, text="Document UUID").grid(column=1, row=2, sticky=E)
-        ttk.Label(mainframe, text="Task").grid(column=1, row=3, sticky=W)
-        
-        self.output = StringVar()
-        self.w = ttk.Label( mainframe, textvariable = self.output)
-        self.w.grid(column = 1, row = 5, sticky=S)
-
-        for child in mainframe.winfo_children(): child.grid_configure(padx=5, pady=5)
-
-        visitor_entry.focus()
-        self.root.bind('<Return>', self.doTask)
-
-        self.taskEx = TaskExecuter()
-        self.root.mainloop()
-
-    def doTask(self, *args):
-        """Does the the task specified by the user and shows the output"""
-        taskId = self.task.get()
-        document = self.document_uuid.get()
-        visitor = self.visitor_uuid.get()
-        self.output.set(str(self.taskEx.executeTask(visitor, document, taskId)))
-
-
-
-
-#--------------------------------------------
-#Main Method
-#--------------------------------------------
-if __name__ == '__main__':
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], "u:d:t:")
-    except getopt.GetoptError as err:
-        print(str(err))
-        sys.exit(0)
-    user = ""
-    doc = ""
-    task = ""
-    for o, a in opts:
-        if o == "-u":
-            user = a
-        elif o == "-d":
-            doc = a
-        elif o == "-t":
-            task = a
-        else:
-            assert False, "unhandled option"
-    if((user == "") and (doc == "") and ( task == "")):
-        gui = GUI()
-    else:
-        taskEx = TaskExecuter()
-        taskEx.executeTask(user, doc, task)
-
+jfile = 'issuu_sample.json'
 #--------------------------------------------
 #Dict Constants
 #--------------------------------------------
@@ -556,4 +266,360 @@ cntry_to_cont = {
   'ZM' : 'AF',
   'ZW' : 'AF'
 }
+
+#--------------------------------------------
+#Task Executer Class
+#--------------------------------------------
+class TaskExecuter:
+
+    def __init__(self):
+        self.records = self.loadJSON()
+
+    def loadJSON(self) -> list:
+        records = [ json.loads(line) for line in open(jfile) ]
+        return records
+
+    def executeTask(self, user, doc, task):
+        """Takes a user uuid, doc uuid and a task and returns the output for the specific task"""
+        if task == "2a":
+            if(doc !=""):
+                return self.task2a(doc)
+            else:
+                print( "DOC UUID needs to be specified")
+                return "DOC UUID needs to be specified"
+        elif task == "2b":
+            if(doc !=""):
+                return self.task2b(doc)
+            else:
+                print( "DOC UUID needs to be specified")
+                return "DOC UUID needs to be specified"
+        elif task == "3a":
+            return self.task3a()
+        elif task =="3b":
+            return self.task3b()
+        elif task == "4":
+            return self.listToStringFormat(self.task4())
+        elif task == "5a":
+            if((doc !="") and (user!="")):
+                return self.listToStringFormat(self.task5(doc, user, sorting ="readership"))
+            else:
+                print( "Both Doc UUID and visitor UUID need to be specified")
+                return "Both Doc UUID and visitor UUID need to be specified"
+        elif task == "5b":
+            if((doc !="") and (user!="")):
+                return self.listToStringFormat(self.task5(doc, user, sorting = "count"))
+            else:
+                print( "Both Doc UUID and visitor UUID need to be specified")
+                return "Both Doc UUID and visitor UUID need to be specified"
+        elif task == "6":
+            if(doc !=""):
+                return self.task6(doc)
+            else:
+                print( "DOC UUID needs to be specified")
+                return "DOC UUID needs to be specified"
+        elif task == "7":
+            if(doc !=""):
+                return self.task7(doc)
+            else:
+                print( "DOC UUID needs to be specified")
+                return "DOC UUID needs to be specified"
+        else:
+            print("NO SUCH TASK")
+            return "NO SUCH TASK"
+
+    def listToStringFormat(self, list) ->str:
+        """Takes a list and returns a string representation of that list"""
+        string = ''
+        for element in list:
+            string = string + str(element) + "\n"
+        return string
+
+    def task2(self, doc) -> dict:
+        """"Take a document UUID and return a  dictionary in which the keys are the countries in which the document
+        has been read in and the values are the number of times the document has been read from that country """
+        country_count = {}
+        match_records = []
+        for entry in self.records:
+            if (entry['event_type'] =='read'):
+                if entry['subject_doc_id'] == doc:
+                    match_records.append(entry)
+        for rec in match_records:
+            if (rec['visitor_country'] in country_count):
+                country_count[rec['visitor_country']] += 1
+            else:
+                country_count[rec['visitor_country']] = 1
+        print(country_count)
+        return country_count
+
+    def task2a(self, doc):
+        """"Take a document UUID and show a histogram of the countries that the document has been read in and 
+        the number of times that it has been read for each country"""
+        country_count = self.task2(doc)
+        self.show_histo(country_count, "vert", "Reads per Country", "Country Distribution")
+
+    def task2b(self, doc):
+        """"Take a document UUID and show a histogram of the continents that the document has been read in and 
+        the number of times that it has been read for each continent"""
+        country_count = self.task2(doc)
+        cont_count = {}
+        for cntry in country_count:
+            if (cntry_to_cont[cntry] in cont_count):
+                cont_count[cntry_to_cont[cntry]] += country_count[cntry]
+            else:
+                cont_count[cntry_to_cont[cntry]] = country_count[cntry]
+        self.show_histo(cont_count, "vert", "Views per Continent", "Continent Distribution")
+
+    def show_histo(self, dict, orient="horiz", label="counts", title="title"):
+        """Take a dictionary of counts and show it as a histogram."""
+        plt.clf()
+        plt.cla()
+        if orient=="horiz":
+            bar_fun = plt.barh 
+            bar_ticks = plt.yticks
+            bar_label = plt.xlabel
+        elif orient=="vert":
+            bar_fun = plt.bar
+            bar_ticks = plt.xticks
+            bar_label = plt.ylabel
+        else:
+            raise Exception("show_histo: Unknown orientation: %s ".format % orient)
+        n = len(dict)
+        bar_fun(range(n), list(dict.values()), align='center', alpha=0.4, color = 'g')
+        bar_ticks(range(n), list(dict.keys())) 
+        bar_label(label)
+        plt.title(title)
+        plt.show()
+
+    def task3a(self):
+        """Show a histogram of the browsers used by viewers"""
+        browser_count = {}
+        for entry in self.records:
+            if((entry['visitor_device'] == 'browser')  and (entry['event_type'] == 'read')):
+                browser = entry['visitor_useragent']
+                if (browser in browser_count):
+                    browser_count[entry['visitor_useragent']] += 1
+                else:
+                    browser_count[entry['visitor_useragent']] = 1
+        self.show_histo(browser_count, "vert", "Number of Accesses using Browser", "Browser Distribution")
+
+    def task3b(self):
+        """Show a histogram of the browsers used by viewers - just the browser name"""
+        browser_count = {}
+        for entry in self.records:
+            if((entry['visitor_device'] == 'browser') and (entry['event_type'] == 'read')):
+                if (entry['visitor_useragent'].find('/') > -1):
+                    browser = entry['visitor_useragent'][0:entry['visitor_useragent'].find('/')]
+                else: browser = entry['visitor_useragent']
+                if (browser in browser_count):
+                    browser_count[browser] += 1
+                else:
+                    browser_count[browser] = 1
+        self.show_histo(browser_count, "vert", "Number of Accesses using Browser", "Browser Distribution")
+
+    def task4(self) ->list:
+        """Return the top 10 readers in the records"""
+        user_readTimes = {}
+        for entry in self.records:
+            if(entry['event_type'] == 'pagereadtime'):
+                if (entry['visitor_uuid'] in user_readTimes):
+                    user_readTimes[entry['visitor_uuid']] += entry['event_readtime']
+                else:
+                    user_readTimes[entry['visitor_uuid']] = entry['event_readtime']
+        readTimes = list(sorted(user_readTimes.items(), key=operator.itemgetter(1), reverse = True))[0:10]
+        for times in readTimes:
+            print(times)
+        return readTimes
+
+    def task5(self, doc_uuid, visitor_uuid, sorting = "count")-> list:
+        """Takes a document uuid, visitor uuid and a type of sorting and returns a list of "also-liked" documents sorted
+        differently depending on the type"""
+        tmp = []
+        if (sorting == "readership"):
+            tmp = self.alsoLike(doc_uuid, visitor_uuid, self.sortByReadership)
+        elif (sorting == "count"):
+            tmp = self.alsoLike(doc_uuid, visitor_uuid, self.sortByReadCount)
+        else:
+            tmp = ["No Such Task"]
+        print(self.listToStringFormat(tmp))
+        return tmp
+
+    def getDocVisitors(self, doc_uuid) -> list:
+        """Takes a document UUID and returns a list of all the visitor UUIDs that read that document"""
+        user_uuids = []
+        for entry in self.records:
+            if((entry['event_type'] =='read') and (entry['subject_doc_id'] == doc_uuid) and (not(entry['visitor_uuid'] in user_uuids))):
+                user_uuids.append(entry['visitor_uuid'])
+        return user_uuids
+
+    def getDocsForVisitor(self, visitor_uuid) -> list:
+        """Takes a visitor UUID and returns a ist of all the documents read by that visitor"""
+        doc_uuids = []
+        for entry in self.records:
+            if ((entry['event_type'] =='read') and (entry['visitor_uuid'] == visitor_uuid)):
+                doc_uuids.append(entry['subject_doc_id'])
+        return doc_uuids
+
+    def alsoLike(self, doc_uuid, visitor_uuid, sort_fun) -> list:
+        """Takes a document uuid, visitor uuid and a sorting function and returns a list of "also-liked" documents sorted
+        by the given function"""
+        user_uuids = self.getDocVisitors(doc_uuid)
+        try:
+            user_uuids.remove(visitor_uuid)
+        except:
+            pass
+        return sort_fun(user_uuids, doc_uuid)[0:10]
+
+    def sortByReadCount(self, user_uuids, doc_uuid) -> list:
+        """Takes a list of user UUIDs and a doc UUID and returns a list of all the docs read by those viewers sorted 
+        by how many users in the list read them"""
+        docs = {}
+        for user_uuid in user_uuids:
+            visitor_docs = self.getDocsForVisitor(user_uuid)
+            for doc in visitor_docs:
+                if(doc != doc_uuid):
+                    if (doc in docs):
+                        docs[doc] += 1
+                    else: 
+                        docs[doc] = 1
+        return list(sorted(docs.items(), key=operator.itemgetter(1), reverse = True))
+
+    def sortByReadership(self, user_uuids, doc_uuid) -> list:
+        """Takes a list of user UUIDs and a doc UUID and returns a list of all the docs read by those viewers sorted 
+        by how many users in the list read them"""
+        docs = {}
+        for entry in self.records:
+            if ((entry['event_type'] == 'pagereadtime') and (entry['visitor_uuid'] in user_uuids)):
+                doc = entry['subject_doc_id']
+                if(doc != doc_uuid):
+                    if(doc in docs):
+                        docs[doc] += int(entry['event_readtime'])
+                    else:
+                        docs[doc] = int(entry['event_readtime'])
+        return list(sorted(docs.items(), key = operator.itemgetter(1), reverse = True))
+
+    def task6(self, doc_uuid):
+        """Takes a document uuid and displays a histogram of what platforms the document has been shared on"""
+        doc_shares = {}
+        for entry in self.records:
+            if ((entry['event_type'] == 'share') and (entry['subject_doc_id'] == doc_uuid)):
+                service = entry['event_service']
+                if(service in doc_shares):
+                    doc_shares[service] += 1
+                else:
+                    doc_shares[service] = 1
+        self.show_histo(doc_shares, "vert", "Number Of Shares for Platform", "Platform Distribution")
+
+    def task7(self, doc_uuid):
+        """Takes a document uuid and displays audience retention for pages based on mean read time"""
+        page_totalRead ={}
+        page_reads = {} 
+        for entry in self.records:
+            if((entry['event_type'] == 'pagereadtime') and (entry['subject_doc_id'] == doc_uuid)):
+                if (entry['subject_page'] in page_totalRead):
+                    page_totalRead[entry['subject_page']] += int(entry['event_readtime'])
+                else:
+                    page_totalRead[entry['subject_page']] = int(entry['event_readtime'])
+                if(entry['subject_page'] in page_reads):
+                    page_reads[entry['subject_page']] += 1
+                else:
+                    page_reads[entry['subject_page']] = 1
+        page_meanRead = {}
+        for page in page_totalRead:
+            if (page in page_reads):
+                page_meanRead[page] = page_totalRead[page]/page_reads[page]
+        self.show_line(page_meanRead, "Page", "Mean Read Time", "Retention")
+
+    def show_line(self, dict, xlabel="x", ylabel="y", title="title"):
+        """Take a dictionary and show it as a line chart"""
+        plt.clf()
+        plt.cla()
+        plt.plot(list(dict.keys()), list(dict.values()), alpha=0.4, color = 'g')
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        plt.title(title)
+        plt.show()
+
+#--------------------------------------------
+#GUI Class
+#--------------------------------------------
+class GUI:
+
+    def __init__(self):
+        """initialisation of the UI"""
+        self.root = Tk()
+        self.root.title("Coursework 2")
+
+        mainframe = ttk.Frame(self.root, padding="3 3 12 12")
+        mainframe.grid(column=0, row=0, sticky=(N, W, E, S))
+        mainframe.columnconfigure(0, weight=1)
+        mainframe.rowconfigure(0, weight=1)
+
+        self.visitor_uuid = StringVar()
+        self.document_uuid = StringVar()
+        self.task = StringVar()
+
+        visitor_entry = ttk.Entry(mainframe, width=30, textvariable=self.visitor_uuid)
+        visitor_entry.grid(column=2, row=1, sticky=(W, E))
+
+        document_entry = ttk.Entry(mainframe, width=30, textvariable=self.document_uuid)
+        document_entry.grid(column=2, row=2, sticky=(W, E))
+
+        task_entry = ttk.Entry(mainframe, width=2, textvariable=self.task)
+        task_entry.grid(column=2, row=3, sticky=(W, E))
+
+        ttk.Button(mainframe, text="Do Task", command=self.doTask).grid(column=2, row=4, sticky=W)
+
+        ttk.Label(mainframe, text="Visitor UUID").grid(column=1, row=1, sticky=W)
+        ttk.Label(mainframe, text="Document UUID").grid(column=1, row=2, sticky=E)
+        ttk.Label(mainframe, text="Task").grid(column=1, row=3, sticky=W)
+        
+        self.output = StringVar()
+        self.w = ttk.Label( mainframe, textvariable = self.output)
+        self.w.grid(column = 1, row = 5, sticky=S)
+
+        for child in mainframe.winfo_children(): child.grid_configure(padx=5, pady=5)
+
+        visitor_entry.focus()
+        self.root.bind('<Return>', self.doTask)
+        
+        self.taskEx = TaskExecuter()
+        self.root.mainloop()
+
+    def doTask(self, *args):
+        """Does the the task specified by the user and shows the output"""
+        taskId = self.task.get()
+        document = self.document_uuid.get()
+        visitor = self.visitor_uuid.get()
+        self.output.set(str(self.taskEx.executeTask(visitor, document, taskId)))
+
+
+
+
+#--------------------------------------------
+#Main Method
+#--------------------------------------------
+if __name__ == '__main__':
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "u:d:t:")
+    except getopt.GetoptError as err:
+        print(str(err))
+        sys.exit(0)
+    user = ""
+    doc = ""
+    task = ""
+    for o, a in opts:
+        if o == "-u":
+            user = a
+        elif o == "-d":
+            doc = a
+        elif o == "-t":
+            task = a
+        else:
+            assert False, "unhandled option"
+    if((user == "") and (doc == "") and ( task == "")):
+        gui = GUI()
+    else:
+        taskEx = TaskExecuter()
+        taskEx.executeTask(user, doc, task)
+
         
