@@ -355,7 +355,7 @@ class TaskExecuter:
         """"Take a document UUID and show a histogram of the countries that the document has been read in and 
         the number of times that it has been read for each country"""
         country_count = self.task2(doc)
-        self.show_histo(country_count, "vert", "Reads per Country", "Country Distribution")
+        GUI.show_histo(country_count, "vert", "Reads per Country", "Country Distribution")
 
     def task2b(self, doc):
         """"Take a document UUID and show a histogram of the continents that the document has been read in and 
@@ -367,28 +367,7 @@ class TaskExecuter:
                 cont_count[cntry_to_cont[cntry]] += country_count[cntry]
             else:
                 cont_count[cntry_to_cont[cntry]] = country_count[cntry]
-        self.show_histo(cont_count, "vert", "Views per Continent", "Continent Distribution")
-
-    def show_histo(self, dict, orient="horiz", label="counts", title="title"):
-        """Take a dictionary of counts and show it as a histogram."""
-        plt.clf()
-        plt.cla()
-        if orient=="horiz":
-            bar_fun = plt.barh 
-            bar_ticks = plt.yticks
-            bar_label = plt.xlabel
-        elif orient=="vert":
-            bar_fun = plt.bar
-            bar_ticks = plt.xticks
-            bar_label = plt.ylabel
-        else:
-            raise Exception("show_histo: Unknown orientation: %s ".format % orient)
-        n = len(dict)
-        bar_fun(range(n), list(dict.values()), align='center', alpha=0.4, color = 'g')
-        bar_ticks(range(n), list(dict.keys())) 
-        bar_label(label)
-        plt.title(title)
-        plt.show()
+        GUI.show_histo(cont_count, "vert", "Views per Continent", "Continent Distribution")
 
     def task3a(self):
         """Show a histogram of the browsers used by viewers"""
@@ -400,7 +379,7 @@ class TaskExecuter:
                     browser_count[entry['visitor_useragent']] += 1
                 else:
                     browser_count[entry['visitor_useragent']] = 1
-        self.show_histo(browser_count, "vert", "Number of Accesses using Browser", "Browser Distribution")
+        GUI.show_histo(browser_count, "vert", "Number of Accesses using Browser", "Browser Distribution")
 
     def task3b(self):
         """Show a histogram of the browsers used by viewers - just the browser name"""
@@ -414,7 +393,7 @@ class TaskExecuter:
                     browser_count[browser] += 1
                 else:
                     browser_count[browser] = 1
-        self.show_histo(browser_count, "vert", "Number of Accesses using Browser", "Browser Distribution")
+        GUI.show_histo(browser_count, "vert", "Number of Accesses using Browser", "Browser Distribution")
 
     def task4(self) ->list:
         """Return the top 10 readers in the records"""
@@ -507,7 +486,7 @@ class TaskExecuter:
                     doc_shares[service] += 1
                 else:
                     doc_shares[service] = 1
-        self.show_histo(doc_shares, "vert", "Number Of Shares for Platform", "Platform Distribution")
+        GUI.show_histo(doc_shares, "vert", "Number Of Shares for Platform", "Platform Distribution")
 
     def task7(self, doc_uuid):
         """Takes a document uuid and displays audience retention for pages based on mean read time"""
@@ -527,17 +506,7 @@ class TaskExecuter:
         for page in page_totalRead:
             if (page in page_reads):
                 page_meanRead[page] = page_totalRead[page]/page_reads[page]
-        self.show_line(page_meanRead, "Page", "Mean Read Time", "Retention")
-
-    def show_line(self, dict, xlabel="x", ylabel="y", title="title"):
-        """Take a dictionary and show it as a line chart"""
-        plt.clf()
-        plt.cla()
-        plt.plot(list(dict.keys()), list(dict.values()), alpha=0.4, color = 'g')
-        plt.xlabel(xlabel)
-        plt.ylabel(ylabel)
-        plt.title(title)
-        plt.show()
+        GUI.show_line(page_meanRead, "Page", "Mean Read Time", "Retention")
 
 #--------------------------------------------
 #GUI Class
@@ -591,6 +560,39 @@ class GUI:
         document = self.document_uuid.get()
         visitor = self.visitor_uuid.get()
         self.output.set(str(self.taskEx.executeTask(visitor, document, taskId)))
+
+    @staticmethod
+    def show_histo(dict, orient="horiz", label="counts", title="title"):
+        """Take a dictionary of counts and show it as a histogram."""
+        plt.clf()
+        plt.cla()
+        if orient=="horiz":
+            bar_fun = plt.barh 
+            bar_ticks = plt.yticks
+            bar_label = plt.xlabel
+        elif orient=="vert":
+            bar_fun = plt.bar
+            bar_ticks = plt.xticks
+            bar_label = plt.ylabel
+        else:
+            raise Exception("show_histo: Unknown orientation: %s ".format % orient)
+        n = len(dict)
+        bar_fun(range(n), list(dict.values()), align='center', alpha=0.4, color = 'g')
+        bar_ticks(range(n), list(dict.keys())) 
+        bar_label(label)
+        plt.title(title)
+        plt.show()
+    
+    @staticmethod
+    def show_line(dict, xlabel="x", ylabel="y", title="title"):
+        """Take a dictionary and show it as a line chart"""
+        plt.clf()
+        plt.cla()
+        plt.plot(list(dict.keys()), list(dict.values()), alpha=0.4, color = 'g')
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        plt.title(title)
+        plt.show()
 
 
 
