@@ -1,4 +1,4 @@
-import sys
+﻿import sys
 import json
 import getopt
 import matplotlib.pyplot as plt
@@ -570,7 +570,7 @@ class GUI:
         ttk.Button(mainframe, text="Do Task", command=self.doTask).grid(column=2, row=4, sticky=W)
 
         ttk.Label(mainframe, text="Visitor UUID").grid(column=1, row=1, sticky=W)
-        ttk.Label(mainframe, text="Document UUID").grid(column=1, row=2, sticky=E)
+        ttk.Label(mainframe, text="Document UUID").grid(column=1, row=2, sticky=W)
         ttk.Label(mainframe, text="Task").grid(column=1, row=3, sticky=W)
         
         self.output = StringVar()
